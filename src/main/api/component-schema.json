@@ -1,0 +1,38 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "definitions": {},
+    "id": "http://example.com/example.json",
+    "properties": {
+        "components": {
+            "id": "/properties/components",
+            "items": {
+                "id": "/properties/components/items",
+                "properties": {
+                    "description": {
+                        "id": "/properties/components/items/properties/description",
+                        "type": "string"
+                    },
+                    "location": {
+                        "id": "/properties/components/items/properties/location",
+                        "type": "string"
+                    },
+                    "material_number": {
+                        "id": "/properties/components/items/properties/material_number",
+                        "type": "string"
+                    },
+                    "supplier": {
+                        "id": "/properties/components/items/properties/supplier",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "type": "array"
+        },
+        "top_material_number": {
+            "id": "/properties/top_material_number",
+            "type": "string"
+        }
+    },
+    "type": "object"
+}

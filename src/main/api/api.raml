@@ -1,0 +1,101 @@
+#%RAML 0.8
+baseUri: https://mocksvc.mulesoft.com/mocks/0579cb8b-6c3e-48b7-8e66-2c2d02739b9c
+title: WIMP_ExperienceAPI
+version: 1.0
+
+/part:
+  /{order_number}:
+   get:
+     description: Get the details of a part
+     responses: 
+       200:
+         body: 
+           application/json:
+             schema: !include order-schema.json
+             example: |
+              {
+                "order_number": "BS0472",
+                "current_location": {
+                    "location_id": "A44E06211",
+                    "shape": "5",
+                    "shape_left": "230",
+                    "shape_top": "455",
+                    "shape_height": "20",
+                    "shape_width": "20"
+                  },
+                "top_material_number": "76483398",
+                "description": "Schäkel",
+                "size_and_dimension": "280/L-50GC1-H53/M20",
+                "weight": "24.332",
+                "to_be_delivered": {
+                  "location": "A44E-06211",
+                  "date": "2012-04-23T18:23:43,511Z",
+                  "production_order": "BS2445"
+                },
+                "next_operation": {
+                  "location": "A44E-06211",
+                  "date": "2012-04-23T18:23:43,511Z"
+                }                  
+              }
+  /{order_number}/location:
+      post:
+        description: update a location for a part
+        queryParameters: 
+          location:
+            type: string
+            required: true
+            example: "A41A-4160"
+        responses: 
+          200:
+  /{top_material_number}/component:
+      get:
+        description: optain the components that make up a part
+        responses: 
+          200:
+            body: 
+              application/json:
+                schema: !include component-schema.json
+                example: |
+                  {
+                    "top_material_number": "E1A1487391",
+                    "components": [
+                      {
+                      "material_number": "76483398",
+                      "description": "Schäkel",
+                      "supplier": "7000521939 / 10",
+                      "location": "A44E-06211"
+                      },
+                      {
+                      "material_number": "E1A1582700",
+                      "description": "Spiraleinsatz SK",
+                      "supplier": "7000526681 / 10",
+                      "location": "B51QUARANT"
+                      }
+                    ]
+                  }
+  /{order_number}/operation:
+      get:
+        description: get the list of operations for a part
+        responses: 
+          200:
+            body: 
+              application/json:
+                schema: !include operation-schema.json
+                example: |
+                  {
+                    "order_number": "BS0472",
+                    "operations": [
+                      {
+                        "sequence_number": "140",
+                        "description": "Prüfungen im Kundenbeisein durchführen.",
+                        "done": "true",
+                        "due": "2012-04-23T18:23:43,511Z"
+                      },
+                      {
+                        "sequence_number": "150",
+                        "description": "Vakuum-Wuchtanlage abrüsten.",
+                        "done": "false",
+                        "due": "2012-04-23T18:23:43,511Z"
+                      }
+                    ]
+                  }

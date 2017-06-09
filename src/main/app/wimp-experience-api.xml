@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:api-platform-gw="http://www.mulesoft.org/schema/mule/api-platform-gw" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/api-platform-gw http://www.mulesoft.org/schema/mule/api-platform-gw/current/mule-api-platform-gw.xsd">
+    <http:listener-config name="api-httpListenerConfig" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration" />
+    <apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
+    <http:request-config name="HTTP_Request_SAP"  host="sap-system-api-1.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/3d76bccd-3112-48a1-8cb7-ef93fb97570e/public/apis/19443428/versions/413660/files/root"/>
+    </http:request-config>
+    <api-platform-gw:api apiName="WIMP_ExperienceAPI" version="1.0" flowRef="api-main" create="true" apikitRef="api-config" doc:name="API Autodiscovery"/>
+    <http:request-config name="HTTP_Request_OpenXS" host="openxs-system-api.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/3d76bccd-3112-48a1-8cb7-ef93fb97570e/public/apis/19474162/versions/416757/files/root"/>
+    </http:request-config>
+    <http:request-config name="HTTP_Request_Configuration" host="plm-system-api.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/3d76bccd-3112-48a1-8cb7-ef93fb97570e/public/apis/19440149/versions/413376/files/root"/>
+    </http:request-config>
+    <http:request-config name="HTTP_Request_Configuration1"  host="workorder-papi-deb.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/3d76bccd-3112-48a1-8cb7-ef93fb97570e/public/apis/19474953/versions/416844/files/root"/>
+    </http:request-config>
+    <flow name="api-main">
+        <http:listener config-ref="api-httpListenerConfig" path="/api/*" doc:name="HTTP" />
+        <apikit:router config-ref="api-config" doc:name="APIkit Router" />
+        <exception-strategy ref="api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy" />
+    </flow>
+    <flow name="api-console">
+        <http:listener config-ref="api-httpListenerConfig" path="/console/*" doc:name="HTTP" />
+        <apikit:console config-ref="api-config" doc:name="APIkit Console" />
+    </flow>
+    <flow name="get:/part/{order_number}:api-config">
+        <http:request config-ref="HTTP_Request_SAP" path="/order/{order_number}" method="GET" doc:name="Call SAP System API">
+            <http:request-builder>
+                <http:uri-param paramName="order_number" value="#[flowVars.order_number]"/>
+                <http:query-param paramName="client_id" value="${wimp.client_id}"/>
+                <http:query-param paramName="client_secret" value="${wimp.client_secret}"/>
+            </http:request-builder>
+        </http:request>
+        <set-payload value="#[payload]" mimeType="application/json" doc:name="Set Payload"/>
+        <enricher source="#[flowVars.location_id]" doc:name="Message Enricher" target="#[flowVars.location_id]">
+            <flow-ref name="subflow_location" doc:name="subflow_location"/>
+        </enricher>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:input-payload doc:sample="sample_data/json.json" />
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	order_number: payload.order_number,
+	top_material_number: payload.top_material_number,
+	description: payload.description,
+	location: flowVars.location_id,
+	size_and_dimension: payload.size_and_dimension,
+	weight: payload.weight,
+	to_be_delivered: {
+		location: payload.location_to_be_delivered,
+		date: payload.date_to_be_delivered,
+		production_order: payload.production_order_to_be_delivered
+	},
+	next_operation: {
+		location: payload.location_next_operation,
+		date: payload.date_next_operation
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+    <sub-flow name="subflow_location">
+        <http:request config-ref="HTTP_Request_OpenXS" path="/part/{order_number}/location" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-param paramName="client_id" value="${wimp.client_id}"/>
+                <http:query-param paramName="client_secret" value="${wimp.client_secret}"/>
+                <http:uri-param paramName="order_number" value="#[flowVars.order_number]"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Transform Message" metadata:id="577ff10e-bf37-49f1-b941-75e581e2e574">
+            <dw:set-variable variableName="location_id"><![CDATA[%dw 1.0
+%output application/java
+---
+payload.current_location.location_id]]></dw:set-variable>
+        </dw:transform-message>
+    </sub-flow>
+    <flow name="get:/part/{top_material_number}/component:api-config">
+        <http:request config-ref="HTTP_Request_Configuration" path="/part/{top_material_number}/component" method="GET" doc:name="Call PLM System API">
+            <http:request-builder>
+                <http:query-param paramName="client_id" value="${wimp.client_id}"/>
+                <http:query-param paramName="client_secret" value="${wimp.client_secret}"/>
+                <http:uri-param paramName="top_material_number" value="#[flowVars.top_material_number]"/>
+            </http:request-builder>
+        </http:request>
+        <set-payload value="#[payload]" mimeType="application/json" doc:name="Set Payload"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	components: payload.components map ((component , indexOfComponent) -> {
+		description: component.description,
+		location: component.location,
+		material_number: component.material_number,
+		supplier: component.supplier
+	}),
+	top_material_number: flowVars.top_material_number
+}]]></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+    <flow name="post:/part/{order_number}/location:api-config">
+        <set-payload value="#[NullPayload.getInstance()]" doc:name="Set Payload" />
+    </flow>
+    <flow name="get:/part/{order_number}/operation:api-config">
+        <http:request config-ref="HTTP_Request_Configuration1" path="/part/{order_number}/operation" method="GET" doc:name="Call Work Order Process API">
+            <http:request-builder>
+                <http:query-param paramName="client_id" value="${wimp.client_id}"/>
+                <http:query-param paramName="client_secret" value="${wimp.client_secret}"/>
+                <http:uri-param paramName="order_number" value="#[flowVars.order_number]"/>
+            </http:request-builder>
+        </http:request>
+        <set-payload value="#[payload]" mimeType="application/json" doc:name="Set Payload"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="16a1dacd-32b2-4e98-8176-bee5c08a50d4">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	operations: payload.operations map ((operation , indexOfOperation) -> {
+		description: operation.description,
+		done: operation.done,
+		due: operation.due,
+		sequence_number: operation.sequence_number
+	}),
+	order_number: payload.order_number
+}]]></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+    <apikit:mapping-exception-strategy name="api-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>
