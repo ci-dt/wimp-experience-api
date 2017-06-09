@@ -15,10 +15,10 @@ http://www.mulesoft.org/schema/mule/api-platform-gw http://www.mulesoft.org/sche
     <http:request-config name="HTTP_Request_OpenXS" host="openxs-system-api.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
         <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/3d76bccd-3112-48a1-8cb7-ef93fb97570e/public/apis/19474162/versions/416757/files/root"/>
     </http:request-config>
-    <http:request-config name="HTTP_Request_Configuration" host="plm-system-api.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
+    <http:request-config name="HTTP_Request_PLM" host="plm-system-api.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
         <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/3d76bccd-3112-48a1-8cb7-ef93fb97570e/public/apis/19440149/versions/413376/files/root"/>
     </http:request-config>
-    <http:request-config name="HTTP_Request_Configuration1"  host="workorder-papi-deb.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
+    <http:request-config name="HTTP_Request_WorkOrder"  host="workorder-papi-deb.eu.cloudhub.io" port="80" basePath="/api" doc:name="HTTP Request Configuration">
         <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/3d76bccd-3112-48a1-8cb7-ef93fb97570e/public/apis/19474953/versions/416844/files/root"/>
     </http:request-config>
     <flow name="api-main">
@@ -82,7 +82,7 @@ payload.current_location.location_id]]></dw:set-variable>
         </dw:transform-message>
     </sub-flow>
     <flow name="get:/part/{top_material_number}/component:api-config">
-        <http:request config-ref="HTTP_Request_Configuration" path="/part/{top_material_number}/component" method="GET" doc:name="Call PLM System API">
+        <http:request config-ref="HTTP_Request_PLM" path="/part/{top_material_number}/component" method="GET" doc:name="Call PLM System API">
             <http:request-builder>
                 <http:query-param paramName="client_id" value="${wimp.client_id}"/>
                 <http:query-param paramName="client_secret" value="${wimp.client_secret}"/>
@@ -106,10 +106,17 @@ payload.current_location.location_id]]></dw:set-variable>
         </dw:transform-message>
     </flow>
     <flow name="post:/part/{order_number}/location:api-config">
-        <set-payload value="#[NullPayload.getInstance()]" doc:name="Set Payload" />
+        <http:request config-ref="HTTP_Request_OpenXS" path="/part/{order_number}/location" method="POST" doc:name="Call OpenXS System API">
+            <http:request-builder>
+                <http:query-param paramName="location" value="#[message.inboundProperties.'http.query.params'.location]"/>
+                <http:uri-param paramName="order_number" value="#[flowVars.order_number]"/>
+                <http:query-param paramName="client_id" value="${wimp.client_id}"/>
+                <http:query-param paramName="client_secret" value="${wimp.client_secret}"/>
+            </http:request-builder>
+        </http:request>
     </flow>
     <flow name="get:/part/{order_number}/operation:api-config">
-        <http:request config-ref="HTTP_Request_Configuration1" path="/part/{order_number}/operation" method="GET" doc:name="Call Work Order Process API">
+        <http:request config-ref="HTTP_Request_WorkOrder" path="/part/{order_number}/operation" method="GET" doc:name="Call Work Order Process API">
             <http:request-builder>
                 <http:query-param paramName="client_id" value="${wimp.client_id}"/>
                 <http:query-param paramName="client_secret" value="${wimp.client_secret}"/>
